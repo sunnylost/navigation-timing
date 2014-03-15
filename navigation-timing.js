@@ -1,71 +1,111 @@
-var t = performance.timing;
+(function() {
+  var rtmpl = /\$\{([^}]+)\}/g;
 
-var phases = [
-  {
-    name: 'Redirect',
-    start: 'redirectStart',
-    end: 'redirectEnd',
-    index: 0
-  }, {
-    name: 'App cache',
-    start: 'fetchStart',
-    end: 'domainLookupStart',
-    index: 1
-  }, {
-    name: 'DNS',
-    start: 'domainLookupStart',
-    end: 'domainLookupEnd',
-    index: 2
-  }, {
-    name: 'TCP',
-    start: 'connectStart',
-    end: 'connectEnd',
-    index: 3
-  }, {
-    name: 'Request',
-    start: 'requestStart',
-    end: 'responseStart',
-    index: 4
-  }, {
-    name: 'Response',
-    start: 'responseStart',
-    end: 'responseEnd',
-    index: 5
-  }, {
-    name: 'Processing',
-    start: 'domLoading',
-    end: 'domComplete',
-    index: 6
-  }, {
-    name: 'onLoad',
-    start: 'loadEventStart',
-    end: 'loadEventEnd',
-    index: 7
-  }
-];
+  var tmpl = {
+    base: '<ol>${content}</ol>',
 
-var colors = [
-  'c00', 'c33', '339', '06c', '09c', '360', '690', '7c3'
-];
+    item: '<li>\
+            <span class="title">${name}</span>\
+            <div class="bar"><i style="width:${width}%;left:${left}%;background-color:#${color};">${value}ms</i></div>\
+          </li>'
+  };
 
-var totalCost = 0;
+  var phases = [
+    {
+      name: 'Redirect',
+      start: 'redirectStart',
+      end: 'redirectEnd',
+      index: 0
+    }, {
+      name: 'App cache',
+      start: 'fetchStart',
+      end: 'domainLookupStart',
+      index: 1
+    }, {
+      name: 'DNS',
+      start: 'domainLookupStart',
+      end: 'domainLookupEnd',
+      index: 2
+    }, {
+      name: 'TCP',
+      start: 'connectStart',
+      end: 'connectEnd',
+      index: 3
+    }, {
+      name: 'Request',
+      start: 'requestStart',
+      end: 'responseStart',
+      index: 4
+    }, {
+      name: 'Response',
+      start: 'responseStart',
+      end: 'responseEnd',
+      index: 5
+    }, {
+      name: 'Processing',
+      start: 'domLoading',
+      end: 'domComplete',
+      index: 6
+    }, {
+      name: 'onLoad',
+      start: 'loadEventStart',
+      end: 'loadEventEnd',
+      index: 7
+    }
+  ];
 
-window.onload = function() {
-  setTimeout(function() {
+  var colors = [
+    'f60', 'f90', 'fc3', '06c', '09c', '360', '690', '7c3'
+  ];
+
+  var totalCost = 0;
+  var t = performance.timing;
+
+  function render(content) {
+    var div = document.createElement('div');
+    div.id = 'navigation-timing-chart';
+
+    var content = [],
+        left = 0;
     phases.forEach(function(v) {
-      var start = t[v.start],
-          end = t[v.end];
-      totalCost += (v.value = (start == 0 ? 0 : (end - start)));
+      v.left = left;
+      left += +v.width;
+      content.push(tmpl.item.replace(rtmpl, function(_, key) {
+        return v[key];
+      }));
     })
-    phases.sort(function(a, b) {
-      return b.value - a.value;
-    })
-    phases.forEach(function(v, i) {
-      v.color = colors[i];
-    })
-    console.log(phases);
-  }, 0)
-};
+
+    div.innerHTML = tmpl.base.replace(rtmpl, content.join(''));
+    document.body.appendChild(div);
+  }
+
+  function compute() {
+    setTimeout(function() {
+      phases.forEach(function(v) {
+        var start = t[v.start],
+            end = t[v.end];
+        totalCost += (v.value = (start == 0 ? 0 : (end - start)));
+      })
+
+      phases.sort(function(a, b) {
+        return b.value - a.value;
+      })
+
+      phases.forEach(function(v, i) {
+        v.color = colors[i];
+        v.width = (100 * v.value / totalCost).toFixed(3);
+      })
+
+      phases.sort(function(a, b) {
+        return a.index - b.index;
+      })
+
+      render();
+    }, 0)
+  }
+
+  window.addEventListener('load', compute);
+}())
 
 /**
  * unload
